@@ -4,8 +4,25 @@ from base_hid import *
 class Hid(BaseHid):
     def __init__(self, device_address, send_report_id = 0, use_hidd = False):
         super().__init__(device_address, send_report_id, use_hidd)
-        
 
+    def _write_report(self, data: bytes):
+        pass
+
+    def _open_path(self, path):
+        for device_info in self.discover():  # Для каждого найденного HID устройства
+            if device_info["path"] == path:  # Если имя устройства совпало
+                pid = f"0x{device_info['product_id']:04x}"
+                vid = f"0x{device_info['vendor_id']:04x}"
+                break
+        self.device = hid.device(vid, pid)
+        
+    def _write_report(self, data: bytes):
+        self.device.write(data)
+
+    def read(self, size = 1):
+        self.device.set_nonblocking(0)
+        data = self.device.read(64, timeout_ms=1000)
+        return data
 def list_hid_devices():
     """Enumerates and prints information about all connected HID devices."""
     print("Enumerating HID devices...")
@@ -27,5 +44,7 @@ if __name__ == "__main__":
         print(f"An error occurred: {e}")
 
         # Finalize the hidapi library
-   # h = Hid.init_by_device_name("Usb Mouse")
-
+    h = Hid.init_by_device_name("Usb Mouse")
+    h.run()
+    h.write(b'\xc8\x04(\x00\x0e|')
+    print(h.read())

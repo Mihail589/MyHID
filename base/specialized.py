@@ -1,2 +1,3 @@
 class BaseSpecializedHandler:
-    pass
+    def run(self):
+        pass

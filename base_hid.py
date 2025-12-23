@@ -83,7 +83,7 @@ class BaseHid(BaseIoInterface):
                 raise RecursionError(f"No Device for attributes {device_address} found")  # Выводим исключение
             self.device_path = device_path  # Устанавливаем путь до устройства
         else:
-            self.device_path = device_address.encode()  # Устанавливаем путь до устройства
+            self.device_path = device_address # Устанавливаем путь до устройства
 
         self._use_hidd = use_hidd  # Устанавливаем флаг необходимости использования HidD
         if use_hidd:  # Если используем HidD:
