@@ -7,6 +7,7 @@ class Hid(BaseHid):
 
 
     def _open_path(self, path):
+        print(path)
         self.device = hid.device(path=path)
         
     def write(self, data):
