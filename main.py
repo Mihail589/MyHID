@@ -44,7 +44,7 @@ if __name__ == "__main__":
         print(f"An error occurred: {e}")
 
         # Finalize the hidapi library
-    h = Hid.init_by_device_name("Usb Mouse")
+    h = Hid(HidAttributes(0x04d8, 0xf94c))
     h.run()
     h.write(b'\xc8\x04(\x00\x0e|')
     print(h.read())
