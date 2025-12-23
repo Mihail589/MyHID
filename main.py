@@ -22,5 +22,6 @@ if __name__ == "__main__":
     print(Hid.discover())
     h = Hid.init_by_device_name("TBS CROSSFIRE")
     h.run()
-    h.write(b'\xc8\x04(\x00\x0e|')
-    print(h.read())
+    for i in range(3):
+        h.write(b'\xc8\x04(\x00\x0e|')
+        print(bytes(h.read()))
