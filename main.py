@@ -5,8 +5,6 @@ class Hid(BaseHid):
     def __init__(self, device_address, send_report_id = 0, use_hidd = False):
         super().__init__(device_address, send_report_id, use_hidd)
 
-    def _write_report(self, data: bytes):
-        pass
 
     def _open_path(self, path):
         for device_info in self.discover():  # Для каждого найденного HID устройства
@@ -16,7 +14,7 @@ class Hid(BaseHid):
                 break
         self.device = hid.device(vid, pid)
         
-    def _write_report(self, data: bytes):
+    def write(self, data):
         self.device.write(data)
 
     def read(self, size = 1):
@@ -44,7 +42,7 @@ if __name__ == "__main__":
         print(f"An error occurred: {e}")
 
         # Finalize the hidapi library
-    h = Hid(HidAttributes(0x04d8, 0xf94c))
+    h = Hid.init_by_device_name("TBS CROSSFIRE")
     h.run()
     h.write(b'\xc8\x04(\x00\x0e|')
     print(h.read())
