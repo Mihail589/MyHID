@@ -7,12 +7,7 @@ class Hid(BaseHid):
 
 
     def _open_path(self, path):
-        for device_info in self.discover():  # Для каждого найденного HID устройства
-            if device_info["path"] == path:  # Если имя устройства совпало
-                pid = f"0x{device_info['product_id']:04x}"
-                vid = f"0x{device_info['vendor_id']:04x}"
-                break
-        self.device = hid.device(vid, pid)
+        self.device = hid.device(path=path)
         
     def write(self, data):
         self.device.write(data)
