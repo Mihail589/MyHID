@@ -1,4 +1,5 @@
 import hid, select
+from commands.ping import ping
 from base_hid import *
 
 class Hid(BaseHid):
@@ -25,5 +26,5 @@ if __name__ == "__main__":
     h = Hid.init_by_device_name("Usb Mouse")
     h.run()
     for i in range(3):
-        h.write(b'\xc8\x04(\x00\x0e|')
+        h.write(ping.pingTBS())
         print(bytes(h.read()))
