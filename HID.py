@@ -15,7 +15,7 @@ class Hid(BaseHid):
         self.device = hid.device()
         self.device.open_path(path)
         
-        self.epoll.registred(fd)
+        self.epoll.register(fd)
         self.fd = fd
 
 
