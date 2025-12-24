@@ -1,53 +1,98 @@
 import os
-import select
-import fcntl
-import array
-import time
+import select, time
 
-def get_hidraw_fd_direct(vid=0x04D8, pid=0xF95C):
-    """
-    Прямое открытие hidraw устройства - возвращает настоящий fd!
-    """
-    for i in range(20):  # Проверяем hidraw0..hidraw19
+def open_all_hidraw_devices():
+    """Открывает все hidraw устройства и возвращает список fd"""
+    fds = []
+    
+    print("Scanning /dev/hidraw* devices...")
+    
+    for i in range(20):
         dev_path = f"/dev/hidraw{i}"
-        print(dev_path)
+        
         if not os.path.exists(dev_path):
             continue
-        
-        # ОТКРЫВАЕМ УСТРОЙСТВО И ПОЛУЧАЕМ НАСТОЯЩИЙ FD!
-        fd = os.open(dev_path, os.O_RDWR | os.O_NONBLOCK)
-        
-        # Проверяем VID/PID
-        buf = array.array('H', [0, 0, 0])
-        # HIDIOCGRAWINFO = 0x80085501
-        fcntl.ioctl(fd, 0x80085501, buf, True)
-        
-        bustype, vendor, product = buf
-        
-        if vendor == vid and product == pid:
-            print(f"✓ Found device: {dev_path}")
-            print(f"  FD: {fd}")
-            print(f"  VID: 0x{vendor:04X}, PID: 0x{product:04X}")
-            return fd
-        else:
-            # Не наше устройство - закрываем
-            os.close(fd)
-                
-                
-    print("✗ Device not found")
-    return None
+            
+        try:
+            # Открываем устройство
+            fd = os.open(dev_path, os.O_RDONLY | os.O_NONBLOCK)
+            print(f"Opened {dev_path} with fd={fd}")
+            fds.append((fd, dev_path))
+            
+        except OSError as e:
+            print(f"Failed to open {dev_path}: {e}")
+    
+    return fds
 
-# Пример: использование fd с epoll
-def use_hidraw_with_epoll():
-    print("Getting direct hidraw fd...")
+def test_hidraw_fds():
+    """Тестируем все открытые hidraw устройства"""
+    fds = open_all_hidraw_devices()
     
-    # ПОЛУЧАЕМ НАСТОЯЩИЙ FD!
-    hid_fd = get_hidraw_fd_direct()
-    
-    if hid_fd is None:
-        print("Device not found via hidraw")
+    if not fds:
+        print("No hidraw devices found")
         return
     
-    print(f"\nSuccess! Real FD: {hid_fd}")
+    print(f"\nFound {len(fds)} hidraw device(s)")
     
-use_hidraw_with_epoll()
+    # Создаем epoll
+    epoll = select.epoll()
+    
+    # Регистрируем все fd в epoll
+    for fd, path in fds:
+        epoll.register(fd, select.EPOLLIN)
+        print(f"Registered fd={fd} ({path}) with epoll")
+    
+    print("\nReading from devices for 10 seconds...")
+    
+    try:
+        end_time = time.time() + 10
+        
+        while time.time() < end_time:
+            # Ждем события
+            events = epoll.poll(timeout=100)  # 100ms
+            
+            for fd, event in events:
+                # Находим путь устройства по fd
+                path = None
+                for f, p in fds:
+                    if f == fd:
+                        path = p
+                        break
+                
+                print(f"\nEvent on fd={fd} ({path}): event={event}")
+                
+                if event & select.EPOLLIN:
+                    try:
+                        # Пробуем прочитать
+                        data = os.read(fd, 64)
+                        print(f"  Read {len(data)} bytes: {data.hex()}")
+                        
+                        # Если данные есть, это может быть наше устройство!
+                        if data:
+                            print(f"  +++ POSSIBLE TARGET DEVICE! +++")
+                            print(f"  Device path: {path}")
+                            print(f"  Data sample: {data[:16].hex()}...")
+                            
+                    except BlockingIOError:
+                        print("  No data available")
+                    except OSError as e:
+                        print(f"  Read error: {e}")
+                
+                elif event & select.EPOLLHUP:
+                    print("  Device disconnected")
+    
+    except KeyboardInterrupt:
+        print("\nInterrupted")
+    
+    finally:
+        # Очистка
+        print("\nCleaning up...")
+        for fd, path in fds:
+            epoll.unregister(fd)
+            os.close(fd)
+            print(f"Closed fd={fd} ({path})")
+        
+        epoll.close()
+
+if __name__ == "__main__":
+    test_hidraw_fds()
