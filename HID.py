@@ -24,18 +24,16 @@ class Hid(BaseHid):
         pid_hex = f"{pid:04x}".lower()
         
         for hidraw in glob.glob('/dev/hidraw*'):
-            try:
                 name = os.path.basename(hidraw)
                 uevent = f'/sys/class/hidraw/{name}/device/uevent'
-                
+                print(name)
                 if os.path.exists(uevent):
                     with open(uevent, 'r') as f:
                         if f"0003:{vid_hex}:{pid_hex}" in f.read().lower():
                             self.select_fd = os.open(hidraw, os.O_RDONLY | os.O_NONBLOCK)
                             print(uevent)
                             break
-            except:
-                continue
+
     def write(self, data):
         self.device.write(data)
 
