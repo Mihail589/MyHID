@@ -1,4 +1,4 @@
-import hid
+import hid, select
 from base_hid import *
 
 class Hid(BaseHid):
@@ -7,9 +7,9 @@ class Hid(BaseHid):
 
 
     def _open_path(self, path):
-        print(path)
         self.device = hid.device()
         self.device.open_path(path)
+        print(self.device.fd)
         
     def write(self, data):
         self.device.write(data)
