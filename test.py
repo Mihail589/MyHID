@@ -1,56 +1,61 @@
 import hid
+import os
 
-def check_device_info():
-    """Проверяет доступность устройства и получает информацию"""
-    vid = 0x04D8
-    pid = 0xF95C
+def try_direct_open():
+    """Пытаемся открыть устройство разными способами"""
     
-    print(f"Looking for device {vid:04X}:{pid:04X}")
-    
-    # Получаем список всех HID устройств
+    # Способ 1: Попробовать все возможные устройства
+    print("Method 1: Trying all devices...")
     all_devices = hid.enumerate()
-    print(f"Total HID devices: {len(all_devices)}")
     
-    # Ищем наше устройство
-    target_devices = hid.enumerate(vid, pid)
-    
-    if not target_devices:
-        print("Device not found!")
-        return False
-    
-    print(f"Found {len(target_devices)} matching device(s):")
-    
-    for i, dev_info in enumerate(target_devices):
-        print(f"\nDevice {i+1}:")
-        print(f"  Vendor ID:  {dev_info['vendor_id']:04X}")
-        print(f"  Product ID: {dev_info['product_id']:04X}")
-        print(f"  Path:       {dev_info['path']}")
-        print(f"  Serial:     {dev_info['serial_number']}")
-        print(f"  Manufacturer: {dev_info['manufacturer_string']}")
-        print(f"  Product:      {dev_info['product_string']}")
-        print(f"  Release:      {dev_info['release_number']}")
-        print(f"  Interface:    {dev_info['interface_number']}")
-        
-        # Пытаемся открыть устройство
+    for dev in all_devices:
         try:
+            print(f"\nTrying device at path: {dev['path'][:50]}...")
             device = hid.device()
-            device.open_path(dev_info['path'])
+            device.open_path(dev['path'])
             
-            # Получаем строки
-            print(f"  Manufacturer: {device.get_manufacturer_string()}")
-            print(f"  Product: {device.get_product_string()}")
-            print(f"  Serial: {device.get_serial_number_string()}")
+            print(f"  Success! Device info:")
+            print(f"    Vendor:  0x{dev['vendor_id']:04X}")
+            print(f"    Product: 0x{dev['product_id']:04X}")
             
-            # Пробуем прочитать дескриптор
-            report_desc = device.get_report_descriptor()
-            print(f"  Report desc size: {len(report_desc) if report_desc else 0}")
-            
+            # Получаем строки если возможно
+            try:
+                print(f"    Manufacturer: {device.get_manufacturer_string()}")
+                print(f"    Product: {device.get_product_string()}")
+            except:
+                pass
+                
             device.close()
             
         except Exception as e:
-            print(f"  Cannot open: {e}")
+            print(f"  Failed: {e}")
     
-    return True
+    # Способ 2: Попробовать конкретные VID/PID
+    print("\n\nMethod 2: Trying specific VID/PID...")
+    
+    # Ваши значения
+    vid_pid_attempts = [
+        (0x04D8, 0xF95C),     # Ваши значения
+        (0x04D8, None),       # Только vendor
+        (None, 0xF95C),       # Только product
+        (1240, 63820),        # Десятичные значения
+    ]
+    
+    for vid, pid in vid_pid_attempts:
+        print(f"\nTrying VID={vid}, PID={pid}...")
+        try:
+            device = hid.device()
+            if vid is not None and pid is not None:
+                device.open(vid, pid)
+            elif vid is not None:
+                device.open(vendor_id=vid)
+            elif pid is not None:
+                device.open(product_id=pid)
+            
+            print(f"  Success!")
+            device.close()
+        except Exception as e:
+            print(f"  Failed: {e}")
 
 if __name__ == "__main__":
-    check_device_info()
+    try_direct_open()
