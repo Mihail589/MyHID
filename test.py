@@ -10,7 +10,7 @@ def get_hidraw_fd_direct(vid=0x04D8, pid=0xF95C):
     """
     for i in range(20):  # Проверяем hidraw0..hidraw19
         dev_path = f"/dev/hidraw{i}"
-        
+        print(dev_path)
         if not os.path.exists(dev_path):
             continue
         
