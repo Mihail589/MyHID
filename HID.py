@@ -40,6 +40,8 @@ class Hid(BaseHid):
 
     def read(self, size = 1):
         self.device.set_nonblocking(0)
-        data = self.device.read(64, timeout_ms=2000)
+        data = b''
+        while data == b'':
+            data = bytes(self.device.read(64, timeout_ms=1000))
 
         return data
