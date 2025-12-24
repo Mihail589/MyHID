@@ -8,8 +8,6 @@ class Hid(BaseHid):
 
     def _open_path(self, path):
         self.device = hid.device()
-        attrs = dir(self.device)
-        print(attrs)
         self.device.open_path(path)
         
         
@@ -22,6 +20,8 @@ class Hid(BaseHid):
         return data
 if __name__ == "__main__":
     print(Hid.discover())
+    attrs = dir(hid.device())
+    print(attrs)
     h = Hid.init_by_device_name("Usb Mouse")
     h.run()
     for i in range(3):
