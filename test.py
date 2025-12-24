@@ -37,3 +37,4 @@ VID = 1240
 PID = 63820
 
 fd = find_and_open_hidraw(VID, PID)
+print(fd)
