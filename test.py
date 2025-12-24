@@ -5,8 +5,8 @@ def find_hid_device_linux(vid, pid):
     """
     Поиск HID-устройства в Linux через sysfs
     """
-    vid_str = f"{vid:04x}".upper()
-    pid_str = f"{pid:04x}".upper()
+    vid_str = f"{vid}"
+    pid_str = f"{pid}"
     
     pattern = f"/sys/bus/hid/devices/*{vid_str}:{pid_str}*"
     devices = glob.glob(pattern)
