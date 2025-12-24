@@ -10,7 +10,10 @@ class Hid(BaseHid):
 
 
     def _open_path(self, path):
-        fd = os.open("/dev/hidraw0", os.O_RDWR | os.O_NONBLOCK)
+        for i in range(20):
+            pathh = f"/dev/hidraw{i}"
+            if os.path.exists(pathh):
+                fd = os.open(pathh, os.O_RDWR | os.O_NONBLOCK)
         print(f"Opened {path} with fd={fd}")
         self.device = hid.device()
         self.device.open_path(path)
