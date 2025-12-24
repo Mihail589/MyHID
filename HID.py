@@ -1,5 +1,5 @@
-import hid
-from select import epoll
+import hid, os
+from select import epoll, EPOLLIN
 
 from base_hid import *
 
@@ -12,6 +12,10 @@ class Hid(BaseHid):
     def _open_path(self, path):
         self.device = hid.device()
         self.device.open_path(path)
+        fd = os.open(path, os.O_RDWR | os.O_NONBLOCK)
+        print(f"Opened {path} with fd={fd}")
+        self.epoll.registred(fd)
+        self.fd = fd
 
 
     def write(self, data):
@@ -19,7 +23,7 @@ class Hid(BaseHid):
 
     def read(self, size = 1):
         self.runner = True
-        self._wait_for_event()
+        return self._wait_for_event()
 
     def readHID(self):
         self.device.set_nonblocking(0)
@@ -32,4 +36,14 @@ class Hid(BaseHid):
     def _wait_for_event(self):
         while self.runner:
             events = self.epoll.poll(3)
-            
+            for fd, event in events:
+                event_count += 1
+                
+                print(f"\n{'='*50}")
+                print(f"Event #{event_count} on fd={fd}")
+                
+                # Декодируем события
+                event_flags = []
+                if event & EPOLLIN:
+                    if fd == self.fd:
+                        return self.readHID()
