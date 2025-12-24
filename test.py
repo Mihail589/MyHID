@@ -14,35 +14,30 @@ def get_hidraw_fd_direct(vid=0x04D8, pid=0xF95C):
         if not os.path.exists(dev_path):
             continue
         
+        # ОТКРЫВАЕМ УСТРОЙСТВО И ПОЛУЧАЕМ НАСТОЯЩИЙ FD!
+        fd = os.open(dev_path, os.O_RDWR | os.O_NONBLOCK)
+        
+        # Проверяем VID/PID
+        buf = array.array('H', [0, 0, 0])
         try:
-            # ОТКРЫВАЕМ УСТРОЙСТВО И ПОЛУЧАЕМ НАСТОЯЩИЙ FD!
-            fd = os.open(dev_path, os.O_RDWR | os.O_NONBLOCK)
+            # HIDIOCGRAWINFO = 0x80085501
+            fcntl.ioctl(fd, 0x80085501, buf, True)
             
-            # Проверяем VID/PID
-            buf = array.array('H', [0, 0, 0])
-            try:
-                # HIDIOCGRAWINFO = 0x80085501
-                fcntl.ioctl(fd, 0x80085501, buf, True)
-                
-                bustype, vendor, product = buf
-                
-                if vendor == vid and product == pid:
-                    print(f"✓ Found device: {dev_path}")
-                    print(f"  FD: {fd}")
-                    print(f"  VID: 0x{vendor:04X}, PID: 0x{product:04X}")
-                    return fd
-                else:
-                    # Не наше устройство - закрываем
-                    os.close(fd)
-                    
-            except IOError as e:
-                print(f"  ioctl failed: {e}")
+            bustype, vendor, product = buf
+            
+            if vendor == vid and product == pid:
+                print(f"✓ Found device: {dev_path}")
+                print(f"  FD: {fd}")
+                print(f"  VID: 0x{vendor:04X}, PID: 0x{product:04X}")
+                return fd
+            else:
+                # Не наше устройство - закрываем
                 os.close(fd)
                 
-        except OSError as e:
-            print(f"  Cannot open {dev_path}: {e}")
-            continue
-    
+        except IOError as e:
+            print(f"  ioctl failed: {e}")
+            os.close(fd)
+                
     print("✗ Device not found")
     return None
 
