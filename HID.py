@@ -23,7 +23,7 @@ class Hid(BaseHid):
         # Ищем hidraw
         vid_hex = f"{vid:04x}".lower()
         pid_hex = f"{pid:04x}".lower()
-        
+        print(vid_hex)
         for hidraw in glob.glob('/dev/hidraw*'):
                 name = os.path.basename(hidraw)
                 uevent = f'/sys/class/hidraw/{name}/device/uevent'
