@@ -38,7 +38,7 @@ class Hid(BaseHid):
         while self.runner:
             events = self.epoll.poll(3)
             for fd, event in events:
-                print(f" on fd={fd}")
+                print(event)
                 
                 # Декодируем события
                 event_flags = []
