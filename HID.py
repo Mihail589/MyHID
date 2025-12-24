@@ -17,6 +17,7 @@ class Hid(BaseHid):
                 pid = i["product_id"]
         
         if vid == 0:
+            print(vid)
             return
         
         # Ищем hidraw
