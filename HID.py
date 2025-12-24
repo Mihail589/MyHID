@@ -32,7 +32,7 @@ class Hid(BaseHid):
                     with open(uevent, 'r') as f:
                         if f"0003:{vid_hex}:{pid_hex}" in f.read().lower():
                             self.select_fd = os.open(hidraw, os.O_RDONLY | os.O_NONBLOCK)
-                            print(hidraw)
+                            print(uevent)
                             break
             except:
                 continue
