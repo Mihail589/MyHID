@@ -1,98 +1,64 @@
 import os
-import select, time
+import select
 
-def open_all_hidraw_devices():
-    """Открывает все hidraw устройства и возвращает список fd"""
-    fds = []
-    
-    print("Scanning /dev/hidraw* devices...")
-    
+def get_any_hidraw_fd():
+    """Просто получаем fd любого hidraw устройства"""
     for i in range(20):
-        dev_path = f"/dev/hidraw{i}"
-        
-        if not os.path.exists(dev_path):
-            continue
-            
-        try:
-            # Открываем устройство
-            fd = os.open(dev_path, os.O_RDONLY | os.O_NONBLOCK)
-            print(f"Opened {dev_path} with fd={fd}")
-            fds.append((fd, dev_path))
-            
-        except OSError as e:
-            print(f"Failed to open {dev_path}: {e}")
-    
-    return fds
+        path = f"/dev/hidraw{i}"
+        if os.path.exists(path):
+            try:
+                # ПРОСТО ОТКРЫВАЕМ И ВОЗВРАЩАЕМ FD
+                fd = os.open(path, os.O_RDWR | os.O_NONBLOCK)
+                print(f"Opened {path} with fd={fd}")
+                return fd, path
+            except OSError as e:
+                print(f"Failed to open {path}: {e}")
+                # Пробуем только для чтения
+                try:
+                    fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+                    print(f"Opened {path} read-only with fd={fd}")
+                    return fd, path
+                except:
+                    continue
+    return None, None
 
-def test_hidraw_fds():
-    """Тестируем все открытые hidraw устройства"""
-    fds = open_all_hidraw_devices()
+# Самый простой пример использования
+fd, path = get_any_hidraw_fd()
+
+if fd is not None:
+    print(f"\n✅ Got real fd: {fd} for device {path}")
     
-    if not fds:
-        print("No hidraw devices found")
-        return
-    
-    print(f"\nFound {len(fds)} hidraw device(s)")
-    
-    # Создаем epoll
+    # Теперь можно использовать с epoll
     epoll = select.epoll()
+    epoll.register(fd, select.EPOLLIN)
     
-    # Регистрируем все fd в epoll
-    for fd, path in fds:
-        epoll.register(fd, select.EPOLLIN)
-        print(f"Registered fd={fd} ({path}) with epoll")
-    
-    print("\nReading from devices for 10 seconds...")
+    print("Waiting for data (press Ctrl+C to stop)...")
     
     try:
-        end_time = time.time() + 10
-        
-        while time.time() < end_time:
-            # Ждем события
-            events = epoll.poll(timeout=100)  # 100ms
-            
-            for fd, event in events:
-                # Находим путь устройства по fd
-                path = None
-                for f, p in fds:
-                    if f == fd:
-                        path = p
-                        break
+        while True:
+            events = epoll.poll(timeout=1000)
+            if events:
+                for event_fd, event in events:
+                    if event & select.EPOLLIN:
+                        try:
+                            data = os.read(fd, 64)
+                            if data:
+                                print(f"Data from fd {fd}: {data.hex()}")
+                        except BlockingIOError:
+                            pass
+            else:
+                print("No events...")
                 
-                print(f"\nEvent on fd={fd} ({path}): event={event}")
-                
-                if event & select.EPOLLIN:
-                    try:
-                        # Пробуем прочитать
-                        data = os.read(fd, 64)
-                        print(f"  Read {len(data)} bytes: {data.hex()}")
-                        
-                        # Если данные есть, это может быть наше устройство!
-                        if data:
-                            print(f"  +++ POSSIBLE TARGET DEVICE! +++")
-                            print(f"  Device path: {path}")
-                            print(f"  Data sample: {data[:16].hex()}...")
-                            
-                    except BlockingIOError:
-                        print("  No data available")
-                    except OSError as e:
-                        print(f"  Read error: {e}")
-                
-                elif event & select.EPOLLHUP:
-                    print("  Device disconnected")
-    
     except KeyboardInterrupt:
-        print("\nInterrupted")
+        print("\nStopped")
     
     finally:
-        # Очистка
-        print("\nCleaning up...")
-        for fd, path in fds:
-            epoll.unregister(fd)
-            os.close(fd)
-            print(f"Closed fd={fd} ({path})")
-        
+        epoll.unregister(fd)
         epoll.close()
-
-if __name__ == "__main__":
-    test_hidraw_fds()
+        os.close(fd)
+else:
+    print("❌ Could not open any hidraw device")
+    print("\nTry:")
+    print("1. sudo python script.py")
+    print("2. sudo chmod 666 /dev/hidraw*")
+    print("3. ls -la /dev/hidraw* to check permissions")
