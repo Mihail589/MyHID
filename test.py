@@ -1,40 +1,38 @@
 import os
+import select
 import fcntl
 import struct
-import glob
 
-def find_and_open_hidraw(vid, pid):
+def get_hidraw_fd(vid, pid):
     """
-    Найти и открыть hidraw устройство по VID/PID
-    Возвращает файловый дескриптор
+    Находит hidraw устройство по VID/PID и возвращает его fd
     """
-    # Преобразуем VID/PID в hex
-    vid_hex = f"{vid:04x}"
-    pid_hex = f"{pid:04x}"
-    
-    # Ищем в sysfs
-    sysfs_pattern = f"/sys/bus/hid/devices/*{vid_hex}:{pid_hex}*/hidraw"
-    
-    for sysfs_path in glob.glob(sysfs_pattern):
-        # Получаем имя hidraw устройства
-        hidraw_devices = os.listdir(sysfs_path)
-        if hidraw_devices:
-            hidraw_name = hidraw_devices[0]
-            dev_path = f"/dev/{hidraw_name}"
-            
+    for i in range(10):  # Проверяем hidraw0..hidraw9
+        dev_path = f"/dev/hidraw{i}"
+        if os.path.exists(dev_path):
             try:
                 # Открываем устройство
                 fd = os.open(dev_path, os.O_RDWR | os.O_NONBLOCK)
-                print(f"Открыто устройство: {dev_path}, fd={fd}")
-                return fd
-            except OSError as e:
-                print(f"Ошибка открытия {dev_path}: {e}")
+                
+                # Получаем информацию об устройстве
+                buf = bytearray(512)
+                res = fcntl.ioctl(fd, 0x80085501, buf)  # HIDIOCGRAWINFO
+                
+                if res >= 0:
+                    bustype, vendor, product = struct.unpack('HHH', buf[:6])
+                    if vendor == vid and product == pid:
+                        return fd
+                
+                # Не подходит - закрываем
+                os.close(fd)
+            except (OSError, IOError):
+                continue
     
     return None
 
-# Использование
-VID = 1240
-PID = 63820
+# Пример использования
+vid = 0x04D8  # Пример: Logitech
+pid = 0xF95C  # Пример: Unifying Receiver
 
-fd = find_and_open_hidraw(VID, PID)
-print(fd)
+fd = get_hidraw_fd(vid, pid)
+print(f"HID device fd: {fd}")
