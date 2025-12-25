@@ -25,12 +25,30 @@ class Hid(BaseHid):
                     # Собираем полный путь устройства
                         realpath = os.path.realpath(dev_path)
                         print(f"hidraw{i}: {realpath}")
-                        if self.path in realpath:
+                        if path in realpath:
                             fd = os.open(hidraw_path, os.O_RDWR | os.O_NONBLOCK)
                             self.fd = fd
                             self.epoll.register(fd, EPOLLIN | EPOLLERR | EPOLLHUP)
                 except Exception as e:
                     print(f"Error checking {hidraw_path}: {e}")
+        
+        if not device_found:
+            # Просто открываем первый доступный hidraw (для теста)
+            for i in range(20):
+                hidraw_path = f"/dev/hidraw{i}"
+                if os.path.exists(hidraw_path):
+                    try:
+                        fd = os.open(hidraw_path, os.O_RDWR | os.O_NONBLOCK)
+                        self.fd = fd
+                        self.epoll.register(fd, EPOLLIN | EPOLLERR | EPOLLHUP)
+                        print(f"Opened {hidraw_path} with fd={fd} (fallback)")
+                        device_found = True
+                        break
+                    except Exception as e:
+                        print(f"Error opening {hidraw_path}: {e}")
+        
+        if not device_found:
+            raise Exception(f"Cannot find or open hidraw device")
 
     def write(self, data):
         if self.fd:
