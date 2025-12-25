@@ -50,7 +50,7 @@ class Hid(BaseHid):
             raise Exception("Device not opened")
 
     def read(self, size=64):
-        self._wait_for_event(size)
+        return self._wait_for_event(size)
     
     def _wait_for_event(self, size):
         try:
