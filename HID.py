@@ -57,9 +57,8 @@ class Hid(BaseHid):
             # Используем epoll с таймаутом
             events = self.epoll.poll(1.0)  # 1 секунда таймаут
             for fd, event in events:
-                if fd == self.fd:
                     if event & EPOLLIN:
-                        return os.read(self.fd, size)
+                        return os.read(fd, size)
                     elif event & EPOLLERR:
                         print("EPOLLERR - проверьте права доступа к устройству")
                         return b''
