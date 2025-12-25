@@ -1,117 +1,115 @@
-import hid, os
+import os
 import select
 from select import epoll, EPOLLIN, EPOLLERR, EPOLLHUP
-
 from base_hid import *
 
 class Hid(BaseHid):
-    def __init__(self, device_address, send_report_id = 0, use_hidd = False):
+    def __init__(self, device_address, send_report_id=0, use_hidd=False):
         self.epoll = epoll()
         self.fd = None
         super().__init__(device_address, send_report_id, use_hidd)
 
     def _open_path(self, path):
-        # Находим соответствующий hidraw устройству
-        self.path = path
+        # Преобразуем путь устройства в hidraw
+        self.path = path if isinstance(path, bytes) else path.encode()
+        print(f"Looking for hidraw device for: {self.path}")
+        
+        # Ищем соответствующий hidraw
         device_found = False
         for i in range(20):
-            pathh = f"/dev/hidraw{i}"
-            if os.path.exists(pathh):
-                # Проверяем, соответствует ли это устройство нашему пути
+            hidraw_path = f"/dev/hidraw{i}"
+            if os.path.exists(hidraw_path):
+                # Проверяем, соответствует ли это нашему устройству
                 try:
-                    fd = os.open(pathh, os.O_RDWR | os.O_NONBLOCK)
-                    
-                    # Создаем устройство hid для основной работы
-                    
-                    
-                    # Регистрируем файловый дескриптор в epoll
-                    self.epoll.register(fd, EPOLLIN | EPOLLERR | EPOLLHUP)
-                    self.fd = fd
-                    
-                    print(f"Opened {path} as {pathh} with fd={fd}")
-                    device_found = True
-                    break
+                    # Можно проверить через sysfs
+                    sysfs_path = f"/sys/class/hidraw/hidraw{i}/device/uevent"
+                    if os.path.exists(sysfs_path):
+                        with open(sysfs_path, 'r') as f:
+                            uevent = f.read()
+                            # Простая проверка - если путь устройства содержит похожие идентификаторы
+                            if b"3-1:1.0" in self.path:
+                                # Открываем raw устройство
+                                fd = os.open(hidraw_path, os.O_RDWR | os.O_NONBLOCK)
+                                self.fd = fd
+                                self.epoll.register(fd, EPOLLIN | EPOLLERR | EPOLLHUP)
+                                print(f"Opened {hidraw_path} with fd={fd}")
+                                device_found = True
+                                break
                 except Exception as e:
-                    print(f"Error opening {pathh}: {e}")
-                    if 'fd' in locals():
-                        os.close(fd)
+                    print(f"Error checking {hidraw_path}: {e}")
         
         if not device_found:
-            raise Exception(f"Cannot find hidraw device for {path}")
+            # Просто открываем первый доступный hidraw (для теста)
+            for i in range(20):
+                hidraw_path = f"/dev/hidraw{i}"
+                if os.path.exists(hidraw_path):
+                    try:
+                        fd = os.open(hidraw_path, os.O_RDWR | os.O_NONBLOCK)
+                        self.fd = fd
+                        self.epoll.register(fd, EPOLLIN | EPOLLERR | EPOLLHUP)
+                        print(f"Opened {hidraw_path} with fd={fd} (fallback)")
+                        device_found = True
+                        break
+                    except Exception as e:
+                        print(f"Error opening {hidraw_path}: {e}")
+        
+        if not device_found:
+            raise Exception(f"Cannot find or open hidraw device")
 
     def write(self, data):
-        self.device = hid.device()
-        self.device.open_path(self.path)
-        if hasattr(self, 'device') and self.device:
-            self.device.write(data)
+        if self.fd:
+            # Для HID устройств часто требуется report id
+            if isinstance(data, list):
+                data = bytes(data)
+            elif isinstance(data, int):
+                data = bytes([data])
+            
+            try:
+                return os.write(self.fd, data)
+            except Exception as e:
+                print(f"Error writing: {e}")
+                return 0
         else:
             raise Exception("Device not opened")
-        self.device.close()
-        print(dir(self.device))
-    def read(self, size=1):
-        # Используем epoll для ожидания данных
-        return self._wait_for_event()
 
-    def readHID(self):
-        # Чтение через hidapi
-        try:
-            if hasattr(self, 'device') and self.device:
-                data = bytes(self.device.read(64, timeout_ms=100))
-                return data if data else b''
-        except Exception as e:
-            print(f"Error reading from HID: {e}")
-            return b''
-
-    def readRaw(self):
-        # Чтение напрямую из файлового дескриптора
-        if self.fd:
-            try:
-                data = os.read(self.fd, 64)
-                return data
-            except BlockingIOError:
-                return b''
-            except Exception as e:
-                print(f"Error reading from fd {self.fd}: {e}")
-                return b''
-        return b''
-
-    def _wait_for_event(self, timeout=1000):
-        """Ожидание событий с использованием epoll"""
+    def read(self, size=64):
         if not self.fd:
             return b''
         
         try:
-            # Ожидаем события с таймаутом (в миллисекундах)
-            events = self.epoll.poll(timeout / 1000.0 if timeout else None)
-            
+            # Используем epoll с таймаутом
+            events = self.epoll.poll(1.0)  # 1 секунда таймаут
             for fd, event in events:
                 if fd == self.fd:
                     if event & EPOLLIN:
-                        # Данные доступны для чтения
-                        return self.readRaw()
+                        return os.read(self.fd, size)
                     elif event & EPOLLERR:
-                        print("Error on device fd")
+                        print("EPOLLERR - проверьте права доступа к устройству")
                         return b''
                     elif event & EPOLLHUP:
-                        print("Device disconnected")
+                        print("EPOLLHUP - устройство отключено")
                         return b''
-        
         except Exception as e:
-            print(f"Error in epoll.poll: {e}")
+            print(f"Error in epoll: {e}")
         
         return b''
 
     def close(self):
-        """Корректное закрытие устройства"""
         if hasattr(self, 'epoll') and self.epoll and self.fd:
-            self.epoll.unregister(self.fd)
+            try:
+                self.epoll.unregister(self.fd)
+            except:
+                pass
         
         if self.fd:
-            os.close(self.fd)
+            try:
+                os.close(self.fd)
+            except:
+                pass
             self.fd = None
         
-        if hasattr(self, 'device') and self.device:
-            self.device.close()
-        
         if hasattr(self, 'epoll') and self.epoll:
-            self.epoll.close()
+            try:
+                self.epoll.close()
+            except:
+                pass
