@@ -26,8 +26,9 @@ class Hid(BaseHid):
         self.device.write(data)
 
     def read(self, size = 1):
-        self.runner = True
-        return self._wait_for_event()
+        return self.readHID()
+       # self.runner = True
+       # return self._wait_for_event()
 
     def readHID(self):
         self.device.set_nonblocking(0)
