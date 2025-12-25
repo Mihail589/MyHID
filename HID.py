@@ -85,7 +85,7 @@ class Hid(BaseHid):
                 if fd == self.fd:
                     if event & EPOLLIN:
                         # Данные доступны для чтения
-                        return self.readRaw()
+                        return self.readHID()
                     elif event & EPOLLERR:
                         print("Error on device fd")
                         return b''
