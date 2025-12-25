@@ -22,7 +22,7 @@ class Hid(BaseHid):
                     
                     # Создаем устройство hid для основной работы
                     self.device = hid.device()
-                    self.device.open_path(path)
+                    #self.device.open_path(path)
                     
                     # Регистрируем файловый дескриптор в epoll
                     self.epoll.register(fd, EPOLLIN | EPOLLERR | EPOLLHUP)
@@ -85,7 +85,7 @@ class Hid(BaseHid):
                 if fd == self.fd:
                     if event & EPOLLIN:
                         # Данные доступны для чтения
-                        return self.readHID()
+                        return self.readRaw()
                     elif event & EPOLLERR:
                         print("Error on device fd")
                         return b''
