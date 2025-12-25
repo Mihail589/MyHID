@@ -47,6 +47,7 @@ class Hid(BaseHid):
         else:
             raise Exception("Device not opened")
         self.device.close()
+        print(dir(self.device))
     def read(self, size=1):
         # Используем epoll для ожидания данных
         return self._wait_for_event()
