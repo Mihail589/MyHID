@@ -50,9 +50,9 @@ class Hid(BaseHid):
             raise Exception("Device not opened")
 
     def read(self, size=64):
-        if not self.fd:
-            return b''
-        
+        self._wait_for_event(size)
+    
+    def _wait_for_event(self, size):
         try:
             # Используем epoll с таймаутом
             events = self.epoll.poll(1.0)  # 1 секунда таймаут
