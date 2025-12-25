@@ -12,6 +12,7 @@ class Hid(BaseHid):
 
     def _open_path(self, path):
         # Находим соответствующий hidraw устройству
+        self.path = path
         device_found = False
         for i in range(20):
             pathh = f"/dev/hidraw{i}"
@@ -21,8 +22,7 @@ class Hid(BaseHid):
                     fd = os.open(pathh, os.O_RDWR | os.O_NONBLOCK)
                     
                     # Создаем устройство hid для основной работы
-                    self.device = hid.device()
-                    #self.device.open_path(path)
+                    
                     
                     # Регистрируем файловый дескриптор в epoll
                     self.epoll.register(fd, EPOLLIN | EPOLLERR | EPOLLHUP)
@@ -40,6 +40,8 @@ class Hid(BaseHid):
             raise Exception(f"Cannot find hidraw device for {path}")
 
     def write(self, data):
+        self.device = hid.device()
+        self.device.open_path(self.path)
         if hasattr(self, 'device') and self.device:
             self.device.write(data)
         else:
