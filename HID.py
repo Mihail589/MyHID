@@ -18,7 +18,6 @@ class Hid(BaseHid):
             hidraw_path = f"/dev/hidraw{i}"
             if os.path.exists(hidraw_path):
                 # Проверяем, соответствует ли это нашему устройству
-                try:
                     # Можно проверить через sysfs
                     dev_path = f"/sys/class/hidraw/hidraw{i}/device"
                     if os.path.exists(dev_path):
@@ -29,8 +28,6 @@ class Hid(BaseHid):
                             fd = os.open(hidraw_path, os.O_RDWR | os.O_NONBLOCK)
                             self.fd = fd
                             self.epoll.register(fd, EPOLLIN | EPOLLERR | EPOLLHUP)
-                except Exception as e:
-                    print(f"Error checking {hidraw_path}: {e}")
         
         if not device_found:
             # Просто открываем первый доступный hidraw (для теста)
